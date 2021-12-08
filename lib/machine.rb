@@ -12,6 +12,14 @@ class Machine
     '10': 10,
     '25': 25,
     '50': 50,
+    '100': 100
+  }.freeze
+
+  CHANGE_MONEY = {
+    10 => 80,
+    25 => 50,
+    50 => 50,
+    100 => 40
   }.freeze
 
   PEPCI = { possition: "1a", price: 200, amount: 1, name: "PEPCI" }
@@ -26,11 +34,12 @@ class Machine
   ALLOWED_MONEY = AVAILABLE_COINS.merge(AVAILABLE_PAPERS).freeze
 
   class << self
-    attr_accessor :balance, :input, :products
+    attr_accessor :balance, :input, :products, :wallet
   end
 
   def self.start
     self.products = AVAILABLE_PRODUCTS.map { |product| Product.new(product) }
+    self.wallet = CHANGE_MONEY
   end
 
   def self.input_money
@@ -53,7 +62,7 @@ class Machine
   def self.chose_product
     chose_products_message
 
-    possition = gets.chomp
+    possition = gets.chomp.downcase
     if available_products.any? { |product| product.possition == possition }
       product = Product.find(products, possition)
       get_product(product)
@@ -64,11 +73,8 @@ class Machine
 
   def self.get_product(product)
     if self.balance >= product.price
-      30.times do
-        putc '.'
-        sleep 0.1
-      end
-      puts "take your #{product.name}"
+      self.loader_message
+      puts "take your #{product.name}".green
       self.update_products(product)
       self.update_balance(product.price)
     else
@@ -115,6 +121,41 @@ class Machine
   end
 
   def self.return_money
-    puts 'money is returned, ty lox'
+    change = {}
+    new_wallet = wallet.sort_by {|k, _| -k }.reduce({}) do |memo, (coin, amount)|
+      if amount.zero? || coin > self.balance
+        memo[coin] = amount
+      else
+        loop do
+          memo[coin] = memo.fetch(coin, amount)
+          break unless self.balance >= coin && memo[coin].nonzero?
+
+          self.balance = self.balance - coin
+          change[coin] = change.fetch(coin, 0) + 1
+          memo[coin] = memo.fetch(coin) - 1
+        end
+      end
+      memo
+    end
+
+    self.wallet = new_wallet
+    change_message(change)
+    self.input_money
+  end
+
+  def self.loader_message
+    80.times do
+      putc '.'
+      sleep 0.005
+    end
+  end
+
+  def self.change_message(change)
+    puts 'TAKE YOUR MONEY'.green
+    change.each do |coin, amount|
+      amount.times { self.loader_message; puts " -  #{ coin == 100 ? '1 gryvja' : "#{coin} coins"}".red }
+    end
+    puts 'not enough cash to change, you can by something else' if self.balance.positive?
+    puts self.wallet
   end
 end
