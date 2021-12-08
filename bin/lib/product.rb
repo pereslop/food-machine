@@ -21,16 +21,3 @@ class Product
   end
 end
 
-AVAILABLE_COINS = {
-  '10': 10,
-  '25': 25,
-  '50': 50,
-  '100': 100
-}.freeze
-
-CHANGE_MONEY = {
-  10 => 80,
-  25 => 50,
-  50 => 50,
-  100 => 3
-}.freeze
